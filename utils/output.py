@@ -7,8 +7,10 @@ import numpy as np
 
 
 def save_predict(outputs, save_dir, pose_name):
-    os.makedirs(save_dir, exist_ok=True)
-    video_path = os.path.join(save_dir, f"animate_{pose_name}.mp4")
+
+    output_dir = os.path.join(save_dir, pose_name)
+    os.makedirs(output_dir, exist_ok=True)
+    video_path = os.path.join(output_dir, f"animate.mp4")
 
     imgs = torch.stack([output[1]["image"] for output in outputs])
     imgs = (imgs.permute(0, 2, 3, 1).cpu().numpy() * 255).astype("uint8")
@@ -19,15 +21,15 @@ def save_predict(outputs, save_dir, pose_name):
     posed_meshes = gaussians["posed_mesh"]
     IO().save_mesh(
         posed_meshes,
-        os.path.join(save_dir, f"pred_mesh_{pose_name}.obj"),
+        os.path.join(output_dir, f"mesh.obj"),
     )
     save_ply(
         gaussians=gaussians,
-        path=os.path.join(save_dir, f"pred_gaussians_{pose_name}.ply"),
+        path=os.path.join(output_dir, f"gaussians.ply"),
     )
     save_ply(
         gaussians=gaussians,
-        path=os.path.join(save_dir, f"pred_gaussians_{pose_name}_rand.ply"),
+        path=os.path.join(output_dir, f"gaussians_rand.ply"),
         rand_color=True,
     )
 

@@ -11,7 +11,7 @@ test = { start = 446, end = 647, skip = 4 }
 [smpl]
 gender = "female"
 
+[model]
 
 [trainer]
 max_epochs = 20
-deterministic = true

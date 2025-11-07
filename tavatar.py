@@ -15,6 +15,7 @@ from model.equilateral import compute_equilateral_loss_for_meshes
 from utils.eval import Evaluator, calculate_chamfer_p2s
 from torchvision.utils import save_image, make_grid
 import imageio.v3 as iio
+from pytorch3d.io import IO
 
 
 class TavatarModel(L.LightningModule):
@@ -30,6 +31,10 @@ class TavatarModel(L.LightningModule):
         self.training_step_outputs = None
         self.pred_step_outputs = []
         self.test_step_outputs = []
+
+    def on_test_start(self):
+        self.test_dir = os.path.join(self.logger.log_dir, "test")
+        os.makedirs(self.test_dir, exist_ok=True)
 
     def on_fit_start(self):
         log_dir = self.logger.log_dir
@@ -92,6 +97,13 @@ class TavatarModel(L.LightningModule):
             "lpips": lpips,
         }
 
+        if batch_idx == 0:
+            posed_mesh = gaussians["posed_mesh"]
+            save_path = os.path.join(
+                self.logger.log_dir, f"test/posed_mesh_{self.current_epoch}.obj"
+            )
+            IO().save_mesh(posed_mesh, save_path)
+
         if "scan_mesh" in batch:
             scan_mesh = batch["scan_mesh"]
             gt_mesh = Meshes(verts=scan_mesh["vertices"], faces=scan_mesh["faces"])
@@ -110,9 +122,6 @@ class TavatarModel(L.LightningModule):
 
     def on_test_end(self):
 
-        save_dir = os.path.join(self.logger.log_dir, "test")
-        os.makedirs(save_dir, exist_ok=True)
-
         metrics = [output["metrics"] for output in self.test_step_outputs]
         rendered = [output["rendered"] for output in self.test_step_outputs]
         batch = [output["batch"] for output in self.test_step_outputs]
@@ -129,7 +138,7 @@ class TavatarModel(L.LightningModule):
             )
             frame = (img_grid.permute(1, 2, 0).cpu().numpy() * 255).astype("uint8")
             frames.append(frame)
-        video_path = os.path.join(save_dir, f"test_{self.current_epoch}.mp4")
+        video_path = os.path.join(self.test_dir, f"test_{self.current_epoch}.mp4")
         iio.imwrite(video_path, frames, fps=20)
 
         # 计算指标
@@ -153,7 +162,7 @@ class TavatarModel(L.LightningModule):
             keys.append(key)
             values.append(str(value))
 
-        with open(os.path.join(save_dir, "metric.log"), "w") as f:
+        with open(os.path.join(self.test_dir, "metric.log"), "w") as f:
             f.write(", ".join(keys) + "\n" + ", ".join(values))
 
         self.test_step_outputs.clear()
@@ -162,14 +171,23 @@ class TavatarModel(L.LightningModule):
         lrs = self.cfg.train
 
         params = [
-            # {"params": self.deformer.v_template, "lr": lrs.v_lr},
             {"params": self.deformer.shs_dc, "lr": lrs.shs_lr},
             {"params": self.deformer.shs_rest, "lr": lrs.shs_lr / 20},
+            {"params": self.deformer.opacity, "lr": lrs.opacity_lr},
             {
                 "params": self.deformer.shape_encoder.parameters(),
                 "lr": lrs.shape_encoder_lr,
             },
         ]
+
+        if self.deformer.learnable_scale:
+            params.append({"params": self.deformer._scales, "lr": lrs.scale_lr})
+            params.append({"params": self.deformer._rotation, "lr": lrs.rotation_lr})
+
+        if self.deformer.use_vertex_gaussians:
+            params.append({"params": self.deformer._scales_v, "lr": lrs.scale_lr})
+            params.append({"params": self.deformer._rotation_v, "lr": lrs.rotation_lr})
+
         optimizer = torch.optim.Adam(params)
         return optimizer
 
@@ -218,6 +236,13 @@ class TavatarModel(L.LightningModule):
             + hp.mesh_loss_weight * mesh_loss
             + hp.normal_loss_weight * normal_loss
         )
+
+        # regularization loss
+        if hp.reg_loss_weight > 0:
+            v_offset = gaussians["v_offset"]
+            reg_loss = torch.mean(v_offset**2)
+            loss["reg_loss"] = reg_loss
+            total_loss = total_loss + hp.reg_loss_weight * reg_loss
 
         # 三角等边约束
         if hp.edge_equal_loss_weight > 0:

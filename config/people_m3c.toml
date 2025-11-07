@@ -5,13 +5,14 @@ root = '/data/lipeng/Shujiazhi/dataset/dataset/people_snapshot'
 subject = 'male-3-casual'
 
 [dataset.split]
-train = { start = 0, end = 455, skip = 4 }
-test = { start = 456, end = 675, skip = 4 }
+train = { start = 0, end = 455, skip = 20 }
+test = { start = 456, end = 675, skip = 20 }
 
 [smpl]
 gender = "male"
+subdivide = 1
 
+[model]
 
 [trainer]
 max_epochs = 20
-deterministic = true

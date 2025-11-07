@@ -2309,6 +2309,7 @@ dependencies = [
     { name = "tinycudann" },
     { name = "toml" },
     { name = "torch" },
+    { name = "torch-scatter" },
     { name = "torchmetrics" },
     { name = "torchvision" },
     { name = "tqdm" },
@@ -2334,6 +2335,7 @@ requires-dist = [
     { name = "tinycudann", git = "https://github.com/NVlabs/tiny-cuda-nn?subdirectory=bindings%2Ftorch" },
     { name = "toml" },
     { name = "torch", specifier = "==2.6.0", index = "https://download.pytorch.org/whl/cu118" },
+    { name = "torch-scatter", git = "https://github.com/rusty1s/pytorch_scatter.git" },
     { name = "torchmetrics" },
     { name = "torchvision", specifier = "==0.21.0", index = "https://download.pytorch.org/whl/cu118" },
     { name = "tqdm" },
@@ -2479,6 +2481,11 @@ wheels = [
     { url = "https://download.pytorch.org/whl/cu118/torch-2.6.0%2Bcu118-cp39-cp39-linux_x86_64.whl", hash = "sha256:68d455d5094c0fae420c7f757e6000383f08ac3d8469d0fc11a5e1f8f8c07a54" },
     { url = "https://download.pytorch.org/whl/cu118/torch-2.6.0%2Bcu118-cp39-cp39-win_amd64.whl", hash = "sha256:a673a03197e2e25491a1cd999ba687b674d30dd4d252088ae3c1e597bdb49f2f" },
 ]
+
+[[package]]
+name = "torch-scatter"
+version = "2.1.2"
+source = { git = "https://github.com/rusty1s/pytorch_scatter.git#3d10cdc838397bfc73aa159649f36ef3186cf4ce" }
 
 [[package]]
 name = "torchmetrics"

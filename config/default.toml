@@ -1,5 +1,6 @@
 seed = 1234
 output = "output"
+exp_name = "debug"
 
 [dataset]
 downscale = 2.0
@@ -13,7 +14,13 @@ path = "/data/lipeng/Shujiazhi/dataset/smpl_models"
 type = "smpl"
 canonical_type = "da-pose"
 gender = "male"
-subdivide = 2
+subdivide = 1
+
+[model]
+learnable_scale = true
+use_vertex_gaussians = false
+min_edge_len_factor = 0.35
+smpl_type = 'smpl'
 
 [trainer]
 devices = [0]
@@ -27,15 +34,19 @@ lr = 1e-3
 v_lr = 0.001
 shs_lr = 0.02
 shape_encoder_lr = 0.0001
+opacity_lr = 0.000
+
+scale_lr = 0.01
+rotation_lr = 0.001
 
 lambda_ssim = 0.1
 gs_loss_weight = 1.0
 mesh_loss_weight = 0.1
 normal_loss_weight = 1.0
-reg_loss_weight = 0.1
-mesh_laplacian_loss_weight = 0.0 
-edge_equal_loss_weight = 0.0
+reg_loss_weight = 0.0
+mesh_laplacian_loss_weight = 0.01
+edge_equal_loss_weight = 0.00
 
 
 [gaussian]
-max_sh_degree = 2
+max_sh_degree = 0

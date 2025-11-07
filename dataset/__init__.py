@@ -19,11 +19,11 @@ def get_train_dataset(cfg):
     if dataset_name == "xhuman":
         data_split_list = cfg.dataset.get("train_list", [])
         train_dataset = XhumanDataset_Multi(
-            data_root=data_root,
+            data_root=cfg.dataset.root,
             subject=cfg.dataset.subject,
+            split="train",
             data_split_list=data_split_list,
             smpl_type=cfg.model.smpl_type,
-            bgcolor=None,
             cfg=cfg.dataset,
         )
         cfg.model.smpl_gender = train_dataset.datasets[0].gender
@@ -43,18 +43,16 @@ def get_train_dataset(cfg):
 def get_test_datasets(cfg):
     dataset_name = cfg.dataset.name
     logging.info(f"Load test dataset: {dataset_name}")
-
-    bgcolor = [1.0, 1.0, 1.0]  # white background
-
+    
     test_datasets = []
     if dataset_name == "xhuman":
         data_split_list = cfg.dataset.get("test_list", [])
         test_dataset = XhumanDataset_Multi(
-            data_root=data_root,
+            data_root=cfg.dataset.root,
             subject=cfg.dataset.subject,
+            split="test",
             data_split_list=data_split_list,
             smpl_type=cfg.model.smpl_type,
-            bgcolor=bgcolor,
             cfg=cfg.dataset,
         )
         cfg.model.smpl_gender = test_dataset.datasets[0].gender

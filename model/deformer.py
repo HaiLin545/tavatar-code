@@ -1,6 +1,7 @@
 import torch
 import logging
 from torch import nn
+import torch.nn.functional as F
 import submodules.smplx_modified as smplx
 from submodules.smplx_modified.lbs import batch_rodrigues, batch_rigid_transform
 from utils.smpl import gen_canonical_pose
@@ -9,7 +10,11 @@ from pytorch3d.structures import Meshes
 from gaussian import inverse_sigmoid
 from pytorch3d.transforms import matrix_to_quaternion
 from model.encoder import DisplacementEncoder
-
+from utils.model import (
+    get_normalized_vertex,
+    get_init_complex_scale,
+    compute_vertex_edge_length,
+)
 
 class HumanDeformer(nn.Module):
     def __init__(self, cfg):
@@ -24,35 +29,45 @@ class HumanDeformer(nn.Module):
 
         # self.v_template = nn.Parameter(v_template.unsqueeze(0))  # (1, N, 3)
 
-        self.register_buffer('v_template', v_template.unsqueeze(0))  # (1, N, 3)
+        self.register_buffer("v_template", v_template.unsqueeze(0))  # (1, N, 3)
         self.register_buffer("canonical_pose", canonical_pose)  # (1, 69)
         self.register_buffer("faces", faces.unsqueeze(0))  # [1, F, 3]
         self.register_buffer("A_inv", A_inv)
         self.register_buffer("J_canonical", J)  # (1, 45, 3)
         self.register_buffer("weights", lbs_weights.unsqueeze(0))  # (1, N, 24)
 
-        opacity = torch.ones((self.n_gs, 1), dtype=torch.float) * 0.9999
-        self.register_buffer("opacity", inverse_sigmoid(opacity))
-
         self.surface_mesh_thickness = 1e-3 / (cfg.smpl.get("subdivide", 0) + 1)
         self.max_sh_degree = cfg.gaussian.get("max_sh_degree", 0)
+
+        normalized_vertices = get_normalized_vertex(self.v_template)
+        self.register_buffer("normalized_vertices", normalized_vertices)
+        self.shape_encoder = DisplacementEncoder()
+
+        self.learnable_scale = cfg.model.get("learnable_scale", False)
+        self.use_vertex_gaussians = cfg.model.get("use_vertex_gaussians", False)
+        self.min_edge_len_factor = cfg.model.get("min_edge_len_factor", 0.5)
+
+        if self.learnable_scale:
+            complex_numbers, scales = get_init_complex_scale(v_template, faces)
+            self._rotation = nn.Parameter(complex_numbers)
+            self._scales = nn.Parameter(torch.log(scales))
+
+        if self.use_vertex_gaussians:
+            edge_lengths = compute_vertex_edge_length(v_template, faces, mode='avg')
+            _rotation_v = torch.tensor([[1.0, 0.0]]).repeat(v_template.shape[0], 1)
+            _scale_v = (
+                edge_lengths.unsqueeze(-1).repeat(1, 2) * self.min_edge_len_factor
+            )
+            self._rotation_v = nn.Parameter(_rotation_v)
+            self._scales_v = nn.Parameter(torch.log(_scale_v))
+
+        opacity = torch.ones((self.n_gs, 1), dtype=torch.float) * 0.9999
+        # self.register_buffer("opacity", inverse_sigmoid(opacity))
+        self.opacity = nn.Parameter(inverse_sigmoid(opacity))
         self.shs_dc = nn.Parameter(torch.zeros([self.n_gs, 1, 3]))
         self.shs_rest = nn.Parameter(
             torch.zeros([self.n_gs, (self.max_sh_degree + 1) ** 2 - 1, 3])
         )
-
-        v_template_centered = self.v_template - self.v_template.mean(
-            dim=1, keepdim=True
-        )
-        minmax = [
-            v_template_centered[0].min(dim=0).values * 1.05,
-            v_template_centered[0].max(dim=0).values * 1.05,
-        ]
-        normalized_vertices = (v_template_centered - minmax[0]) / (
-            minmax[1] - minmax[0]
-        )
-        self.register_buffer("normalized_vertices", normalized_vertices)
-        self.shape_encoder = DisplacementEncoder()
 
     @torch.no_grad()
     def init_smpl_model(
@@ -113,14 +128,32 @@ class HumanDeformer(nn.Module):
             full_pose = full_pose + self.body_model.pose_mean
 
         R, t = self.lbs(full_pose, weights=self.weights)
-        verts = self.get_vertex()
+
+        # verts = self.get_vertex()
+
+        v_offset = self.shape_encoder(self.normalized_vertices)
+        verts = self.v_template + v_offset
+
         verts_posed = torch.einsum("bnij,bnj->bni", R, verts) + t + transl
-        xyzs, scales = self.get_inner_circle(verts_posed[0], self.faces[0])
-        normals, quaternions = self.get_quaterinions_normal(
-            verts_posed[0], self.faces[0]
-        )
 
         posed_mesh = Meshes(verts=verts_posed, faces=self.faces)
+        xyzs, scales, normals, quaternions = self.get_face_gaussians(
+            verts_posed, posed_mesh
+        )
+
+        if self.use_vertex_gaussians:
+            (
+                xyzs_v,
+                scales_v,
+                normals_v,
+                quaternions_v,
+            ) = self.get_vertex_gaussians(verts_posed, posed_mesh)
+
+            xyzs = torch.cat([xyzs, xyzs_v], dim=0)
+            scales = torch.cat([scales, scales_v], dim=0)
+            normals = torch.cat([normals, normals_v], dim=0)
+            quaternions = torch.cat([quaternions, quaternions_v], dim=0)
+
         output = {
             "xyzs": xyzs,
             "scales": scales,
@@ -129,6 +162,7 @@ class HumanDeformer(nn.Module):
             "posed_mesh": posed_mesh,
             "quaternions": quaternions,
             "opacity": torch.sigmoid(self.opacity),
+            "v_offset": v_offset,
         }
 
         return output
@@ -157,7 +191,11 @@ class HumanDeformer(nn.Module):
 
     @property
     def n_gs(self):
-        return self.faces.shape[1]
+
+        if self.use_vertex_gaussians:
+            return self.v_template.shape[1] + self.faces.shape[1]
+        else:
+            return self.faces.shape[1]
 
     def get_shs(self):
         shs = torch.cat([self.shs_dc, self.shs_rest], dim=1)
@@ -166,35 +204,48 @@ class HumanDeformer(nn.Module):
     def get_xyzs(self, verts_posed):
         """get the center of each face as the xyz of each gaussian"""
         faces_verts = verts_posed[:, self.faces[0]]
-        xyzs = faces_verts.mean(dim=2)
+        xyzs = faces_verts.mean(dim=2)[0]  # (F, 3)
         return xyzs
 
-    def get_gaussians(self, verts_posed):
+    def get_face_gaussians(self, verts_posed, posed_mesh):
 
-        posed_mesh = Meshes(verts=verts_posed, faces=self.faces)
+        if self.learnable_scale:
+            xyzs = self.get_xyzs(verts_posed)
+            plane_scales = torch.exp(self._scales)
+            normal_scale = (
+                torch.ones(len(self._scales), 1, device=xyzs.device)
+                * self.surface_mesh_thickness
+            )
+            scales = torch.cat([normal_scale, plane_scales], dim=-1)
+            normals = self.get_face_normal(verts_posed[0], self.faces[0])
+            quaternions = self.get_quaternions(verts_posed[0], self.faces[0], normals)
 
-        xyzs, scales = self.get_inner_circle(verts_posed[0], self.faces[0])
-        normals, quaternions = self.get_quaterinions_normal(
-            verts_posed[0], self.faces[0]
+        else:
+            xyzs, scales = self.get_inner_circle(verts_posed[0], self.faces[0])
+            normals, quaternions = self.get_incircle_quaterinions_normal(
+                verts_posed[0], self.faces[0]
+            )
+
+        return xyzs, scales, normals, quaternions
+
+    def get_vertex_gaussians(self, verts_posed, posed_mesh):
+
+        xyzs_v = verts_posed[0]
+
+        edge_len = compute_vertex_edge_length(verts_posed[0], self.faces[0], mode='avg')
+        # plane_scales = torch.exp(self._scales_v)
+        plane_scales = (
+            edge_len.unsqueeze(-1).repeat(1, 2) * self.min_edge_len_factor
         )
+        normal_scale = (
+            torch.ones(len(self._scales_v), 1, device=xyzs_v.device)
+            * self.surface_mesh_thickness
+        )
+        scales_v = torch.cat([plane_scales, normal_scale], dim=-1)
+        normals_v = posed_mesh.verts_normals_packed()
+        quaternions_v = self.get_quaternions_v(normals_v)
 
-        # if self.use_point_gs:
-
-        #     scales_v = self.get_scales_v
-        #     normals_v = posed_mesh.verts_normals_packed()
-
-        #     # quaternions_v = self._rotations_v
-        #     quaternions_v = self.get_quaternions_v(posed_mesh.verts_normals_packed())
-
-        #     xyzs = torch.cat([xyzs, verts_posed[0]])
-        #     scales = torch.cat([scales, scales_v])
-        #     quaternions = torch.cat([quaternions, quaternions_v])
-        #     normals = torch.cat([normals, normals_v])
-
-        # shs = self.get_shs_nomal(normals)
-        shs = self.get_shs
-
-        return xyzs, scales, shs, normals, quaternions, posed_mesh
+        return xyzs_v, scales_v, normals_v, quaternions_v
 
     def get_inner_circle(self, vertices, faces):
         v0 = vertices[faces[:, 0], :]  # F, 3
@@ -235,7 +286,7 @@ class HumanDeformer(nn.Module):
 
         return incenter, scales
 
-    def get_quaterinions_normal(self, vertices, faces):
+    def get_incircle_quaterinions_normal(self, vertices, faces):
         v0 = vertices[faces[:, 0], :]
         v1 = vertices[faces[:, 1], :]
         v2 = vertices[faces[:, 2], :]
@@ -254,3 +305,68 @@ class HumanDeformer(nn.Module):
         quaterinions = matrix_to_quaternion(R)
 
         return normal, quaterinions
+
+    def get_quaternions(self, verts, faces, face_normals):
+        """
+        verts: (N, 3)
+        faces: (F, 3)
+        """
+
+        R_0 = torch.nn.functional.normalize(face_normals, dim=-1)
+        # We use the first side of every triangle as the second base axis
+        faces_verts = verts[faces]
+        base_R_1 = torch.nn.functional.normalize(
+            faces_verts[:, 0] - faces_verts[:, 1], dim=-1
+        )
+        base_R_2 = torch.nn.functional.normalize(torch.cross(R_0, base_R_1, dim=-1))
+        # We now apply the learned 2D rotation to the base quaternion
+        complex_numbers = torch.nn.functional.normalize(self._rotation, dim=-1)
+        t1 = complex_numbers[:, 0:1]
+        t2 = complex_numbers[:, 1:2]
+        R_1 = t1 * base_R_1 + t2 * base_R_2
+        R_2 = -t2 * base_R_1 + t1 * base_R_2
+
+        # We concatenate the three vectors to get the rotation matrix
+        R = torch.cat([R_0, R_1, R_2], dim=-1)
+        R = R.view(-1, 3, 3).transpose(1, 2)  # B, 3, 3
+
+        quaternion = matrix_to_quaternion(R)
+        return quaternion
+
+    def get_face_normal(self, vertices, faces):
+        v0 = vertices[faces[:, 0], :]
+        v1 = vertices[faces[:, 1], :]
+        v2 = vertices[faces[:, 2], :]
+        # 计算边向量
+        edge1 = v1 - v0
+        edge2 = v2 - v0
+        normal = torch.cross(edge1, edge2)
+        normal = normal / (normal.norm(dim=-1, keepdim=True))
+        return normal
+
+    def get_quaternions_v(self, normals):
+        """
+        计算四元数，使得Z轴与给定的法线对齐。
+        """
+        # z 轴现在是我们的法线方向
+        z = F.normalize(normals, dim=-1)
+
+        # --- 构建正交基，以 z 轴为基准 ---
+        # 找到绝对值最小的分量
+        min_abs_idx = torch.argmin(torch.abs(z), dim=-1)
+        # 创建一个与 z 最不平行的向量 c
+        c = torch.zeros_like(z)
+        c.scatter_(1, min_abs_idx.unsqueeze(1), 1.0)
+
+        # 使用叉乘构建正交的 x 和 y 轴
+        x = F.normalize(torch.cross(c, z, dim=-1), dim=-1)
+        y = F.normalize(torch.cross(z, x, dim=-1), dim=-1)
+        # complex_numbers = F.normalize(self._rotation_v, dim=-1)
+        # t1 = complex_numbers[:, 0:1]  # cos(theta)
+        # t2 = complex_numbers[:, 1:2]  # sin(theta)
+        # R_1 = t1 * x + t2 * y
+        # R_2 = -t2 * x + t1 * y
+        R = torch.stack([x, y, z], dim=2)  # 形状 (B, 3, 3)
+        quaternion = matrix_to_quaternion(R)
+
+        return quaternion

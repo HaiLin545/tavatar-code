@@ -5,6 +5,11 @@ class DotDict(dict):
         for key, value in self.items():
             if isinstance(value, dict):
                 self[key] = DotDict(value)
+            if isinstance(value, list):
+                self[key] = [
+                    DotDict(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
     
     def __getattr__(self, attr):
         return self.get(attr)

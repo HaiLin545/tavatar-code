@@ -120,7 +120,7 @@ def get_camera_params_360(width=512, height=512, num_deg=100, device="cuda"):
 
     intrinsic = fov2K(60, H=height, W=width).astype(np.float32)
     axis = torch.tensor([0, 1, 0], dtype=torch.float32)
-    camera_position = torch.tensor([0, 0, 2.5], dtype=torch.float32)
+    camera_position = torch.tensor([0, 0, -2.5], dtype=torch.float32)
     camera_params_360 = []
     cv_2_gl = torch.tensor(cv2gl, dtype=torch.float32)
 
@@ -130,7 +130,8 @@ def get_camera_params_360(width=512, height=512, num_deg=100, device="cuda"):
         c2w = torch.eye(4)
         c2w[:3, :3] = R
         c2w[:3, 3] = R @ camera_position
-        extrinsic = cv_2_gl @ torch.inverse(c2w)
+        # extrinsic = cv_2_gl @ torch.inverse(c2w)
+        extrinsic = torch.inverse(c2w)
         camera_param = get_camera_params(intrinsic, extrinsic, width, height)
         camera_params_360.append(camera_param)
 

@@ -1,0 +1,17 @@
+
+
+[dataset]
+name = 'xhuman'
+root = '/data/lipeng/Shujiazhi/dataset/xhuman'
+subject = '00017'
+
+
+[[dataset.train_list]]
+x_split = 'test'
+takes = [7, 10]
+split = { start = 0, end = -1, skip = 4 }
+
+[[dataset.test_list]]
+x_split = 'train'
+takes = [1, 2, 3, 4, 5, 6, 8, 11, 13]
+split = { start = 0, end = -1, skip = 4 }

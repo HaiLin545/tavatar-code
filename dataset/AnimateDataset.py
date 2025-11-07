@@ -60,7 +60,7 @@ class AnimateDataset(Dataset):
         else:
             raise ValueError("Either pose or pose_path should be provided.")
 
-        self.is360 = is360
+        self.is360 = is360 or self.full_poses.shape[0] == 1
 
         if bgcolor is None:
             bgcolor = (np.random.rand(3) * 255.0).astype(np.float32)
@@ -71,13 +71,12 @@ class AnimateDataset(Dataset):
         self.transl = torch.tensor([0, 0, 0], dtype=torch.float32)
         self.full_poses = self.full_poses
 
-        if is360:
+        if self.is360:
             self.camera_params = get_camera_params_360(width, height, num_deg=len(self))
         else:
             c2w = torch.eye(4)
             c2w[:3, 3] = torch.tensor([0, 0, -2.5], dtype=torch.float32)
             intrinsic = fov2K(60, H=height, W=width).astype(np.float32)
-            # extrinsic = torch.tensor(cv2gl) @ torch.inverse(c2w)
             extrinsic = torch.inverse(c2w)
             self.camera_params = get_camera_params(intrinsic, extrinsic, width, height)
 

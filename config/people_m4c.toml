@@ -14,4 +14,3 @@ gender = "male"
 
 [trainer]
 max_epochs = 20
-deterministic = true
