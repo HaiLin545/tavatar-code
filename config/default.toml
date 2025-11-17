@@ -8,17 +8,18 @@ random_bg = true
 bgcolor = [1.0, 1.0, 1.0]
 use_refined_pose = true
 load_depth = false
+dataset_dir = "D:\\SMIL\\datasets\\custom_dataset\\dataset"
 
 [smpl]
-path = "/data/lipeng/Shujiazhi/dataset/smpl_models"
+path = "D:\\SMIL\\datasets\\smpl_models\\"
 type = "smpl"
 canonical_type = "da-pose"
 gender = "male"
 subdivide = 1
 
 [model]
-learnable_scale = true
-use_vertex_gaussians = false
+learnable_scale = false
+use_vertex_gaussians = true
 min_edge_len_factor = 0.35
 smpl_type = 'smpl'
 
@@ -45,7 +46,7 @@ mesh_loss_weight = 0.1
 normal_loss_weight = 1.0
 reg_loss_weight = 0.0
 mesh_laplacian_loss_weight = 0.01
-edge_equal_loss_weight = 0.00
+edge_equal_loss_weight = 0.01
 
 
 [gaussian]

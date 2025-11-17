@@ -137,7 +137,7 @@ def main(args, cfg):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", type=str, default="./config/xhuman_16.toml")
-    parser.add_argument("--device", type=int, default=5)
+    parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--ckpt", type=str, default=None)
     parser.add_argument("--resume_dir", type=str, default=None)
     # parser.add_argument(
