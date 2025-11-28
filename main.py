@@ -72,7 +72,8 @@ def predict_pose(cfg, model: TavatarModel, trainer: Trainer, pose_path: str):
     end_time = time.monotonic()
     total_time = end_time - start_time  #
 
-    save_dir = os.path.join(trainer.logger.log_dir, f"predict_{trainer.current_epoch}")
+    # save_dir = os.path.join(trainer.logger.log_dir, f"predict_{trainer.current_epoch}")
+    save_dir = os.path.join(trainer.logger.log_dir, f"predict_20")
     os.makedirs(save_dir, exist_ok=True)
     save_predict(outputs, save_dir, os.path.basename(pose_path).split(".")[0])
 
@@ -127,6 +128,10 @@ def main(args, cfg):
                 "./novel_poses/aist_demo.npy",
                 "./novel_poses/poses/da_pose_smpl.npy",
                 "./novel_poses/poses/t_pose_smpl.npy",
+                # "./novel_poses/poses/balei1.npy",
+                # "./novel_poses/poses/balei2.npy",
+                # "./novel_poses/poses/dance1.npy",
+                # "./novel_poses/poses/dance2.npy",
             ]
             for pose_path in poses_path:
                 predict_pose(cfg, tavatarModel, trainer, pose_path)

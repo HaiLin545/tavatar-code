@@ -46,7 +46,7 @@ mesh_loss_weight = 0.1
 normal_loss_weight = 1.0
 reg_loss_weight = 0.0
 mesh_laplacian_loss_weight = 0.01
-edge_equal_loss_weight = 0.01
+edge_equal_loss_weight = 0.00
 
 
 [gaussian]

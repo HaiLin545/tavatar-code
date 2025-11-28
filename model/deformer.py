@@ -52,14 +52,14 @@ class HumanDeformer(nn.Module):
             self._rotation = nn.Parameter(complex_numbers)
             self._scales = nn.Parameter(torch.log(scales))
 
-        if self.use_vertex_gaussians:
-            edge_lengths = compute_vertex_edge_length(v_template, faces, mode='avg')
-            _rotation_v = torch.tensor([[1.0, 0.0]]).repeat(v_template.shape[0], 1)
-            _scale_v = (
-                edge_lengths.unsqueeze(-1).repeat(1, 2) * self.min_edge_len_factor
-            )
-            self._rotation_v = nn.Parameter(_rotation_v)
-            self._scales_v = nn.Parameter(torch.log(_scale_v))
+        # if self.use_vertex_gaussians:
+        #     edge_lengths = compute_vertex_edge_length(v_template, faces, mode='avg')
+        #     _rotation_v = torch.tensor([[1.0, 0.0]]).repeat(v_template.shape[0], 1)
+        #     _scale_v = (
+        #         edge_lengths.unsqueeze(-1).repeat(1, 2) * self.min_edge_len_factor
+        #     )
+        #     self._rotation_v = nn.Parameter(_rotation_v)
+        #     self._scales_v = nn.Parameter(torch.log(_scale_v))
 
         opacity = torch.ones((self.n_gs, 1), dtype=torch.float) * 0.9999
         # self.register_buffer("opacity", inverse_sigmoid(opacity))
@@ -238,7 +238,7 @@ class HumanDeformer(nn.Module):
             edge_len.unsqueeze(-1).repeat(1, 2) * self.min_edge_len_factor
         )
         normal_scale = (
-            torch.ones(len(self._scales_v), 1, device=xyzs_v.device)
+            torch.ones(len(plane_scales), 1, device=xyzs_v.device)
             * self.surface_mesh_thickness
         )
         scales_v = torch.cat([plane_scales, normal_scale], dim=-1)

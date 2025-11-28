@@ -179,14 +179,13 @@ class TavatarModel(L.LightningModule):
                 "lr": lrs.shape_encoder_lr,
             },
         ]
-
         if self.deformer.learnable_scale:
             params.append({"params": self.deformer._scales, "lr": lrs.scale_lr})
             params.append({"params": self.deformer._rotation, "lr": lrs.rotation_lr})
 
-        if self.deformer.use_vertex_gaussians:
-            params.append({"params": self.deformer._scales_v, "lr": lrs.scale_lr})
-            params.append({"params": self.deformer._rotation_v, "lr": lrs.rotation_lr})
+        # if self.deformer.use_vertex_gaussians:
+        #     params.append({"params": self.deformer._scales_v, "lr": lrs.scale_lr})
+        #     params.append({"params": self.deformer._rotation_v, "lr": lrs.rotation_lr})
 
         optimizer = torch.optim.Adam(params)
         return optimizer

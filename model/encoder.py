@@ -31,6 +31,16 @@ class HashEncoder(nn.Module):
             )
         self.networks = nn.ModuleList(self.networks)
 
+    def count_parameters(self):
+        """统计每个 player 和总的参数量"""
+        total_params = 0
+        for i, network in enumerate(self.networks):
+            player_params = sum(p.numel() for p in network.parameters())
+            total_params += player_params
+            print(f"Player {i}: {player_params:,} parameters ({player_params * 4 / 1024**2:.2f} MB in FP32)")
+        print(f"Total: {total_params:,} parameters ({total_params * 4 / 1024**2:.2f} MB in FP32)")
+        return total_params
+
     def forward(self, x):
         self.outputs = []
         for i in range(self.num_players):
