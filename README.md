@@ -1,35 +1,37 @@
 # Tavatar
 
-This repository provides the inference code and pre-trained checkpoint for Tavatar.
+[![Project Page](https://img.shields.io/badge/Project-Page-2ea44f?logo=googlechrome\&logoColor=white)](https://hailin545.github.io/tavatar/)
 
-## Requirements
+This repository contains the official implementation of **Tavatar (CVPR 2026)**. A high-quality 3D avatar reconstruction method that leverages 2D image inputs to generate realistic 3D avatars.
 
-- Python >= 3.9
+## News
+
+- **\[2026-03]** 🎉 Tavatar is accepted to **CVPR 2026**.
+
+
+## Overview
+
+![Framework overview of Tavatar](figures/overview.png)
+
+
+## Environment
+
+- Python = 3.9
 - CUDA 11.8
-- [uv](https://github.com/astral-sh/uv) package manager
+- Ubuntu/Linux or Windows with CUDA-enabled GPU
 
-### Platform-Specific Requirements
-
-**Windows:**
-- Visual Studio 2022 with C++ build tools (required for compiling extensions)
-
-**Ubuntu:**
-- GCC compiler (usually pre-installed)
-
-## Installation
-
-It's so easy !! install dependencies:
-
+### Install steps
 ```bash
-uv sync
+python -m venv .venv --prompt tavatar
+
+source .venv/bin/activate # for bash/zsh
+# or
+.venv\Scripts\activate.ps1 # for PowerShell
+
+pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu118
+
+pip install -r requirements.txt
 ```
-
-This will automatically:
-- Create a virtual environment
-- Install all required dependencies including PyTorch, PyTorch3D, and other packages
-- Build necessary extensions (diff-gaussian-rasterization, tinycudann, etc.)
-
-**Note:** The first installation may take some time as it needs to compile several extensions from source.
 
 ## Data Preparation
 
@@ -39,40 +41,25 @@ Download the SMPL model files and place them in the following directory structur
 
 ```
 ./dataset/smpl_models/smpl/
-  ├── SMPL_FEMALE.pkl
-  ├── SMPL_MALE.pkl
-  └── SMPL_NEUTRAL.pkl
+  ├── SMPL_FEMALE.pkl
+  ├── SMPL_MALE.pkl
+  └── SMPL_NEUTRAL.pkl
 ```
-
-You can obtain SMPL models from the [official SMPL website](https://smpl.is.tue.mpg.de/) (registration required).
+You can obtain SMPL models from the [🔗official SMPL website](https://smpl.is.tue.mpg.de/) (registration required).
 
 ## Inference
 
-We provide a pre-trained checkpoint in `output/tavatar/people_snapshot/male-3-casual/`.
-
-### Run Animation
-
-**Ubuntu/Linux:**
 ```bash
-bash scripts/eval.sh
+bash scripts/eval.sh # bash/zsh
+# or
+.\scripts\eval.ps1 # PowerShell
 ```
 
-**Windows (PowerShell):**
-```powershell
-.\scripts\eval.ps1
-```
+## Data Source
 
-Or run directly with Python:
-```bash
-python main.py --resume_dir "./output/tavatar/people_snapshot/male-3-casual" --animate
-```
+- Data preparation follows the scripts provided by [🔗InstantAvatar](https://github.com/tijiang13/InstantAvatar).
+- We extract normal maps using [🔗Sapiens](https://github.com/facebookresearch/sapiens).
 
-### Output
-
-The animation results will be saved in:
-```
-output/tavatar/people_snapshot/male-3-casual/predict_20/
-```
 
 ## Troubleshooting
 
@@ -81,3 +68,8 @@ output/tavatar/people_snapshot/male-3-casual/predict_20/
 If you encounter build errors on Windows, ensure:
 1. Visual Studio 2022 is installed with "Desktop development with C++" workload
 2. CUDA 11.8 is properly installed and in PATH
+
+## License
+This project is released under the **MIT License**.
+
+See [LICENSE](LICENSE) for full license terms.

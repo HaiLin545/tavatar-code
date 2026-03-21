@@ -11,3 +11,4 @@ wheels/
 .vscode
 data/
 smpl_models/
+.DS_Store
