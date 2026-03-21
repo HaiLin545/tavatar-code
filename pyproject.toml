@@ -1,0 +1,65 @@
+[project]
+name = "tavatar"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "torch==2.6.0",
+    "torchvision==0.21.0",
+    "toml",
+    "opencv-python-headless",
+    "scikit-image",
+    "matplotlib",
+    "chumpy",
+    "imageio",
+    "imageio-ffmpeg",
+    "tqdm",
+    "tensorboard",
+    "kornia",
+    "trimesh",
+    "plyfile",
+    "torchmetrics",
+    "lightning",
+    "lpips",
+    "numpy==1.23.0",
+    "diff-gaussian-rasterization",
+    "pytorch3d",
+    "tinycudann",
+    "torch-scatter"
+]
+
+[tool.uv.sources]
+torch = [{ index = 'pytorch-cu118' }]
+torchvision = [{ index = 'pytorch-cu118' }]
+diff-gaussian-rasterization = [
+    { git = 'https://github.com/ashawkey/diff-gaussian-rasterization' },
+]
+pytorch3d = [
+    { git = 'https://github.com/facebookresearch/pytorch3d.git', tag = 'stable' },
+]
+tinycudann = [
+    { git = 'https://github.com/NVlabs/tiny-cuda-nn', subdirectory = 'bindings/torch' },
+]
+torch-scatter = [{ git = 'https://github.com/rusty1s/pytorch_scatter.git' }]
+
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
+[tool.uv]
+no-build-isolation-package = [
+    "tinycudann",
+    "pytorch3d",
+    "diff-gaussian-rasterization",
+    "torchvision",
+    "torch-scatter",
+]
+
+[tool.uv.extra-build-dependencies]
+chumpy = ["pip"]

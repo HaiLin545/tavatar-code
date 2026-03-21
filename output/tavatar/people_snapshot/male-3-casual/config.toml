@@ -1,0 +1,61 @@
+seed = 1234
+output = "output"
+exp_name = "tavatar"
+
+[dataset]
+downscale = 2.0
+random_bg = true
+bgcolor = [ 1.0, 1.0, 1.0,]
+use_refined_pose = true
+load_depth = false
+dataset_dir = "./data/dataset"
+name = "people_snapshot"
+subject = "male-3-casual"
+
+[smpl]
+path = "./dataset/smpl_models/"
+type = "smpl"
+canonical_type = "da-pose"
+gender = "male"
+subdivide = 1
+
+[model]
+learnable_scale = false
+use_vertex_gaussians = true
+min_edge_len_factor = 0.35
+smpl_type = "smpl"
+
+[trainer]
+devices = [ 0,]
+max_epochs = 20
+deterministic = true
+log_every_n_steps = 10
+
+[train]
+lr = 0.001
+v_lr = 0.001
+shs_lr = 0.02
+shape_encoder_lr = 0.0001
+opacity_lr = 0.0
+scale_lr = 0.01
+rotation_lr = 0.001
+lambda_ssim = 0.1
+gs_loss_weight = 1.0
+mesh_loss_weight = 0.1
+normal_loss_weight = 1.0
+reg_loss_weight = 0.0
+mesh_laplacian_loss_weight = 0.01
+edge_equal_loss_weight = 0.01
+
+[gaussian]
+max_sh_degree = 0
+
+[dataset.split.train]
+start = 0
+end = 455
+skip = 20
+
+[dataset.split.test]
+start = 456
+end = 675
+skip = 20
