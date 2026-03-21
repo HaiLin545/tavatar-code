@@ -19,18 +19,11 @@ This repository contains the official implementation of **Tavatar (CVPR 2026)**.
 - Python = 3.9
 - CUDA 11.8
 - Ubuntu/Linux or Windows with CUDA-enabled GPU
+- uv package manager
 
-### Install steps
+### Install Dependencies
 ```bash
-python -m venv .venv --prompt tavatar
-
-source .venv/bin/activate # for bash/zsh
-# or
-.venv\Scripts\activate.ps1 # for PowerShell
-
-pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu118
-
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Data Preparation
