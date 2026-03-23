@@ -1,0 +1,15 @@
+
+[dataset]
+name = 'people_snapshot'
+subject = 'male-4-casual'
+
+[dataset.split]
+train = { start = 0, end = 659, skip = 6 }
+test = { start = 660, end = 872, skip = 6 }
+
+[smpl]
+gender = "male"
+
+
+[trainer]
+max_epochs = 20
