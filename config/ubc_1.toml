@@ -1,0 +1,18 @@
+
+[dataset]
+name = 'ubc_fashion'
+subject = 'ubc_1'
+use_refined_pose = false
+use_optimized_pose = true
+downscale = 1.0
+
+[dataset.split]
+train = { start = 0, end = 123, skip = 1 }
+test = { start = 100, end = 123, skip = 1 }
+
+[smpl]
+gender = "female"
+subdivide = 2
+
+[trainer]
+max_epochs = 20

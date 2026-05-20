@@ -26,7 +26,9 @@ dependencies = [
     "diff-gaussian-rasterization",
     "pytorch3d",
     "tinycudann",
-    "torch-scatter"
+    "torch-scatter",
+    "vedo>=2025.5.4",
+    "smplx>=0.1.28",
 ]
 
 [tool.uv.sources]
@@ -36,7 +38,7 @@ diff-gaussian-rasterization = [
     { git = 'https://github.com/ashawkey/diff-gaussian-rasterization' },
 ]
 pytorch3d = [
-    { git = 'https://github.com/facebookresearch/pytorch3d.git', tag = 'stable' },
+    { git = 'https://github.com/facebookresearch/pytorch3d.git', tag = 'v0.7.5' },
 ]
 tinycudann = [
     { git = 'https://github.com/NVlabs/tiny-cuda-nn', subdirectory = 'bindings/torch' },

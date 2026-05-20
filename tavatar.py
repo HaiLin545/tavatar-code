@@ -89,12 +89,18 @@ class TavatarModel(L.LightningModule):
         rgb_pred = rendered["image"].unsqueeze(0)  # (1,3, H, W)
         rgb_gt = batch["img"]
 
+        normal_l1 = l1_loss(rendered["normal_map"], batch["normal"])
+        normal_l2 = torch.mean((rendered["normal_map"] - batch["normal"]) ** 2)
+
         mse, psnr, ssim, lpips = self.evaluator.evaluate(rgb_pred, rgb_gt)
         metrics = {
             "mse": mse,
             "psnr": psnr,
             "ssim": ssim,
             "lpips": lpips,
+            "nc": mesh_normal_consistency(gaussians["posed_mesh"]).item(),
+            "normal_l1": normal_l1.item(),
+            "normal_l2": normal_l2.item(),
         }
 
         if batch_idx == 0:
@@ -140,6 +146,21 @@ class TavatarModel(L.LightningModule):
             frames.append(frame)
         video_path = os.path.join(self.test_dir, f"test_{self.current_epoch}.mp4")
         iio.imwrite(video_path, frames, fps=20)
+
+        # 保存叠加视频
+        overlay_frames = []
+        alpha = 0.5  # rgb_pred的透明度
+        for b, r in zip(batch, rendered):
+            rgb_gt = b["img"][0]  # (3, H, W)
+            rgb_pred = r["image"]  # (3, H, W)
+            # 将rgb_pred以半透明方式叠加到rgb_gt上
+            overlay = rgb_gt * (1 - alpha) + rgb_pred * alpha
+            overlay = torch.clamp(overlay, 0, 1)
+            frame = (overlay.permute(1, 2, 0).cpu().numpy() * 255).astype("uint8")
+            overlay_frames.append(frame)
+        noise = self.cfg.dataset.get("noise", 0.0)
+        overlay_video_path = os.path.join(self.test_dir, f"test_overlay_{self.current_epoch}_{noise}.mp4")
+        iio.imwrite(overlay_video_path, overlay_frames, fps=20)
 
         # 计算指标
         avg_metrics = {}

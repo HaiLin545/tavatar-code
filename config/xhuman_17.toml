@@ -5,6 +5,8 @@ name = 'xhuman'
 root = '/data/lipeng/Shujiazhi/dataset/xhuman'
 subject = '00017'
 
+[model]
+type = "smplx"
 
 [[dataset.train_list]]
 x_split = 'test'

@@ -15,6 +15,8 @@ from utils.model import (
     get_init_complex_scale,
     compute_vertex_edge_length,
 )
+# from model.VoxelSkinningField import VoxelSkinningField, DistanceWeightedSkinningField, JointAwareSkinningField
+from utils.vis import weights_to_rgb, save_ply_with_color
 
 class HumanDeformer(nn.Module):
     def __init__(self, cfg):
@@ -68,6 +70,22 @@ class HumanDeformer(nn.Module):
         self.shs_rest = nn.Parameter(
             torch.zeros([self.n_gs, (self.max_sh_degree + 1) ** 2 - 1, 3])
         )
+
+        # self.skinningField = JointAwareSkinningField(
+        #     canonical_verts=v_template,
+        #     canonical_weights=lbs_weights,
+        #     canonical_joints=J,
+        #     resolution=64,
+        #     padding=0.5,
+        # )
+
+        # weights = self.skinningField(self.v_template)[0]
+        
+        # # Visualize weights on template mesh
+        # pca_rgb = weights_to_rgb(weights)
+        # save_ply_with_color("debug_template_weights.ply", self.v_template.squeeze(0), pca_rgb)
+        # print("Template Weights Visualization Done.")
+
 
     @torch.no_grad()
     def init_smpl_model(

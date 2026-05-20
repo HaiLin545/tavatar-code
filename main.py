@@ -19,7 +19,7 @@ timer = Timer()
 
 def train(cfg, model: TavatarModel, trainer: Trainer):
     train_dataset = get_dataset(cfg, split="train")
-    train_dataloader = DataLoader(train_dataset, shuffle=True, num_workers=4)
+    train_dataloader = DataLoader(train_dataset, shuffle=True, num_workers=0)
     trainer.fit(model=model, train_dataloaders=train_dataloader)
 
     print(f"fit done, fit time = {timer.time_elapsed('train'):.2f} seconds")
@@ -33,7 +33,7 @@ def predict(cfg, model: TavatarModel, trainer: Trainer):
     canonical_dataset = AnimateDataset(
         width=512, height=512, pose=canonical_pose.repeat(120, 1), is360=True
     )
-    canonical_dataloader = DataLoader(canonical_dataset, shuffle=False, num_workers=4)
+    canonical_dataloader = DataLoader(canonical_dataset, shuffle=False, num_workers=0)
     outputs = trainer.predict(model=model, dataloaders=canonical_dataloader)
 
     save_dir = os.path.join(trainer.logger.log_dir, f"predict_{trainer.current_epoch}")
@@ -63,7 +63,7 @@ def predict(cfg, model: TavatarModel, trainer: Trainer):
 def predict_pose(cfg, model: TavatarModel, trainer: Trainer, pose_path: str):
 
     animate_dataset = AnimateDataset(
-        width=512, height=512, pose_path=pose_path, is360=True
+        width=512, height=512, pose_path=pose_path, is360=False
     )
     animate_dataloader = DataLoader(animate_dataset, shuffle=False)
 
@@ -86,7 +86,7 @@ def predict_pose(cfg, model: TavatarModel, trainer: Trainer, pose_path: str):
 def test(cfg, model: TavatarModel, trainer: Trainer):
     test_datasets = get_dataset(cfg, split="test")
     test_dataloaders = [
-        DataLoader(test_dataset, shuffle=False, num_workers=4)
+        DataLoader(test_dataset, shuffle=False, num_workers=0)
         for test_dataset in test_datasets
     ]
     trainer.test(model=model, dataloaders=test_dataloaders)
@@ -128,10 +128,10 @@ def main(args, cfg):
                 "./novel_poses/aist_demo.npy",
                 "./novel_poses/poses/da_pose_smpl.npy",
                 "./novel_poses/poses/t_pose_smpl.npy",
-                # "./novel_poses/poses/balei1.npy",
-                # "./novel_poses/poses/balei2.npy",
-                # "./novel_poses/poses/dance1.npy",
-                # "./novel_poses/poses/dance2.npy",
+                "./novel_poses/poses/balei1.npy",
+                "./novel_poses/poses/balei2.npy",
+                "./novel_poses/poses/dance1.npy",
+                "./novel_poses/poses/dance2.npy",
             ]
             for pose_path in poses_path:
                 predict_pose(cfg, tavatarModel, trainer, pose_path)

@@ -9,6 +9,7 @@ bgcolor = [1.0, 1.0, 1.0]
 use_refined_pose = true
 load_depth = false
 dataset_dir = "D:\\SMIL\\datasets\\custom_dataset\\dataset"
+noise = 0.0
 
 [smpl]
 path = "D:\\SMIL\\datasets\\smpl_models\\"
@@ -21,11 +22,10 @@ subdivide = 1
 learnable_scale = false
 use_vertex_gaussians = true
 min_edge_len_factor = 0.35
-smpl_type = 'smpl'
 
 [trainer]
 devices = [0]
-max_epochs = 20
+max_epochs = 10
 deterministic = true
 log_every_n_steps = 10
 

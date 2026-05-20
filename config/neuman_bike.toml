@@ -1,0 +1,30 @@
+
+[dataset]
+name = 'test'
+root = 'D:\\SMIL\\datasets\\custom_dataset\\dataset\\test'
+subject = 'bike'
+downscale = 1.0
+use_refined_pose = false
+use_optimized_pose = true
+
+[dataset.split]
+train = { start = 0, end = 103, skip = 1 }
+test = { start = 0, end = 103, skip = 5 }
+
+[smpl]
+gender = "female"
+subdivide = 2
+
+[model]
+
+[train]
+lambda_ssim = 0.1
+gs_loss_weight = 1.5
+mesh_loss_weight = 0.01
+normal_loss_weight = 1.0
+reg_loss_weight = 0.0
+mesh_laplacian_loss_weight = 0.005
+edge_equal_loss_weight = 0.00
+
+[trainer]
+max_epochs = 12

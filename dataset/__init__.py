@@ -1,6 +1,7 @@
 import logging
 from dataset.HumanDataset import HumanDataset
 from dataset.XhumanDataset import XhumanDataset_Multi
+from dataset.NeumanDataset import NeumanDataset
 import os
 
 
@@ -24,10 +25,19 @@ def get_train_dataset(cfg):
             subject=cfg.dataset.subject,
             split="train",
             data_split_list=data_split_list,
-            smpl_type=cfg.model.smpl_type,
+            smpl_type=cfg.smpl.type,
             cfg=cfg.dataset,
         )
         cfg.model.smpl_gender = train_dataset.datasets[0].gender
+    
+    elif dataset_name == "neuman":
+        train_dataset = NeumanDataset(
+            root=dataset_root,
+            subject=cfg.dataset.subject,
+            split="train",
+            smpl_type=cfg.smpl.type,
+            opt=cfg.dataset,
+        )
 
     else:  # dataset_name == "people_snapshot" or dataset_name == "custom":
         train_dataset = HumanDataset(
@@ -54,20 +64,29 @@ def get_test_datasets(cfg):
             subject=cfg.dataset.subject,
             split="test",
             data_split_list=data_split_list,
-            smpl_type=cfg.model.smpl_type,
+            smpl_type=cfg.smpl.type,
             cfg=cfg.dataset,
         )
         cfg.model.smpl_gender = test_dataset.datasets[0].gender
-        test_datasets.append(test_dataset)
-    else:  # dataset_name == "people_snapshot" or dataset_name == "custom":
-        dataset = HumanDataset(
+
+    elif dataset_name == "neuman":
+        test_dataset = NeumanDataset(
             root=dataset_root,
             subject=cfg.dataset.subject,
             split="test",
             smpl_type=cfg.smpl.type,
             opt=cfg.dataset,
         )
-        test_datasets.append(dataset)
+    else:  # dataset_name == "people_snapshot" or dataset_name == "custom":
+        test_dataset = HumanDataset(
+            root=dataset_root,
+            subject=cfg.dataset.subject,
+            split="test",
+            smpl_type=cfg.smpl.type,
+            opt=cfg.dataset,
+        )
+
+    test_datasets.append(test_dataset)
 
     logging.info(f"Load {len(test_datasets)} test dataset: {dataset_name}")
 

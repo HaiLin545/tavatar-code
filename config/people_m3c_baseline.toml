@@ -10,10 +10,11 @@ test = { start = 456, end = 675, skip = 20 }
 
 [smpl]
 gender = "male"
-subdivide = 1
+subdivide = 2
 
 [model]
-
+learnable_scale = true
+use_vertex_gaussians = false
 
 [trainer]
 max_epochs = 10

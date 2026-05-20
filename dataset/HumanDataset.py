@@ -2,8 +2,10 @@ import os
 import torch
 import glob
 import numpy as np
+import json
 from PIL import Image
 from torch.utils.data import Dataset
+from pytorch3d.transforms import axis_angle_to_matrix
 
 from utils.cam_utils import get_camera_params, get_smplx_camera_params
 import logging
@@ -57,7 +59,19 @@ class HumanDataset(Dataset):
             self.smpl_params = self.load_smpl_param(opt, self.root, split)
 
         elif smpl_type == "smplx":
-            self.smpl_params = self.load_smplx_param(opt, self.root, split)
+            # self.smpl_params = self.load_smplx_param(opt, self.root, split)
+            self.smpl_params = self.load_smpl_param(opt, self.root, split)
+            smplx_param = self.load_smplx_param_json(opt, self.root, split)
+            # smplx_param["full_pose"][:, :3] = self.smpl_params["full_pose"][:, :3]
+            self.smpl_params['full_pose'] = smplx_param["full_pose"]
+            self.smpl_params['transl'] = smplx_param["transl"]
+
+
+        # stress test, add noise to body_pose
+        self.noise = opt.get("noise", 0.0)
+        if self.noise > 0.0:
+            noise = torch.randn_like(self.smpl_params["full_pose"][:, 3:]) * self.noise
+            self.smpl_params["full_pose"][:, 3:] += noise
 
         self.bg_lists = []
 
@@ -93,21 +107,21 @@ class HumanDataset(Dataset):
     def load_camera(self, opt):
         logging.info("loading camera params...")
 
-        if self.smpl_type == "smpl":
-            camera = np.load(os.path.join(self.root, "cameras.npz"))
-            extrinsic = camera["extrinsic"].astype(np.float32)
-            intrinsic = camera["intrinsic"].astype(np.float32)
+        # if self.smpl_type == "smpl":
+        camera = np.load(os.path.join(self.root, "cameras.npz"))
+        extrinsic = camera["extrinsic"].astype(np.float32)
+        intrinsic = camera["intrinsic"].astype(np.float32)
 
-            camera_params = get_camera_params(
-                intrinsic=intrinsic / self.downscale,
-                extrinsic=torch.tensor(extrinsic),
-                height=int(camera["height"] / self.downscale),
-                width=int(camera["width"] / self.downscale),
-            )
-        elif self.smpl_type == "smplx":
-            width = opt.width
-            height = opt.height
-            camera_params = get_smplx_camera_params(width=width, height=height)
+        camera_params = get_camera_params(
+            intrinsic=intrinsic / self.downscale,
+            extrinsic=torch.tensor(extrinsic),
+            height=int(camera["height"] / self.downscale),
+            width=int(camera["width"] / self.downscale),
+        )
+        # elif self.smpl_type == "smplx":
+        #     width = opt.width
+        #     height = opt.height
+        #     camera_params = get_smplx_camera_params(width=width, height=height)
 
         return camera_params
 
@@ -215,6 +229,116 @@ class HumanDataset(Dataset):
 
         return smplx_params
 
+    def load_smplx_param_json(self, opt, root, split):
+        """
+        Load SMPLX parameters from JSON files.
+        JSON format:
+        {
+            "root_pose": [3],  # global_orient in axis-angle
+            "body_pose": [[3], ...],  # 21 body joints
+            "jaw_pose": [3],
+            "leye_pose": [3],
+            "reye_pose": [3],
+            "lhand_pose": [[3], ...],  # 15 left hand joints
+            "rhand_pose": [[3], ...],  # 15 right hand joints
+            "expr": [50],  # expression parameters
+            "trans": [3]  # translation
+        }
+        """
+        logging.info("loading smplx params from JSON files...")
+        json_dir = os.path.join(root, "smplx_params")
+
+        # Get all JSON files and sort by filename
+        json_files = sorted(glob.glob(f"{json_dir}/*.json"))
+        json_files = json_files[self.start : self.end : self.skip]
+
+        if len(json_files) == 0:
+            raise ValueError(f"No JSON files found in {json_dir}")
+
+        # Parse all JSON files
+        all_params = []
+        for json_path in tqdm(json_files, desc="Loading SMPLX JSON params"):
+            with open(json_path, "r") as f:
+                data = json.load(f)
+                all_params.append(data)
+
+        B = len(all_params)
+
+        # Collect parameters from all frames (keep as axis-angle)
+        global_orient_list = []
+        body_pose_list = []
+        jaw_pose_list = []
+        eye_pose_list = []
+        left_hand_pose_list = []
+        right_hand_pose_list = []
+        expr_list = []
+        transl_list = []
+
+        for params in all_params:
+            # Global orientation (3,)
+            global_orient = torch.tensor(params["root_pose"], dtype=torch.float32)
+            global_orient_list.append(global_orient)
+
+            # Body pose (21, 3)
+            body_pose = torch.tensor(params["body_pose"], dtype=torch.float32)
+            body_pose_list.append(body_pose)
+
+            # Jaw pose (3,)
+            jaw_pose = torch.tensor(params["jaw_pose"], dtype=torch.float32)
+            jaw_pose_list.append(jaw_pose)
+
+            # Eye poses (2, 3)
+            leye = torch.tensor(params["leye_pose"], dtype=torch.float32)
+            reye = torch.tensor(params["reye_pose"], dtype=torch.float32)
+            eye_pose = torch.stack([leye, reye], dim=0)
+            eye_pose_list.append(eye_pose)
+
+            # Left hand pose (15, 3)
+            left_hand = torch.tensor(params["lhand_pose"], dtype=torch.float32)
+            left_hand_pose_list.append(left_hand)
+
+            # Right hand pose (15, 3)
+            right_hand = torch.tensor(params["rhand_pose"], dtype=torch.float32)
+            right_hand_pose_list.append(right_hand)
+
+            # Expression (50,)
+            expr = torch.tensor(params["expr"], dtype=torch.float32)
+            expr_list.append(expr)
+
+            trans = torch.tensor(params["trans"], dtype=torch.float32)
+            transl_list.append(trans)
+
+        # Stack all frames
+        global_orient = torch.stack(global_orient_list, dim=0)  # (B, 3)
+        body_pose = torch.stack(body_pose_list, dim=0)  # (B, 21, 3)
+        jaw_pose = torch.stack(jaw_pose_list, dim=0)  # (B, 3)
+        eye_pose = torch.stack(eye_pose_list, dim=0)  # (B, 2, 3)
+        left_hand_pose = torch.stack(left_hand_pose_list, dim=0)  # (B, 15, 3)
+        right_hand_pose = torch.stack(right_hand_pose_list, dim=0)  # (B, 15, 3)
+        expr = torch.stack(expr_list, dim=0)  # (B, 50)
+        trans = torch.stack(transl_list, dim=0)  # (B, 3)
+
+        # Concatenate full pose (B, 55, 3)
+        # Order: global_orient(1) + body_pose(21) + jaw_pose(1) + eye_pose(2) + left_hand(15) + right_hand(15) = 55
+        full_pose = torch.cat(
+            [
+                global_orient.unsqueeze(1),  # (B, 1, 3)
+                body_pose,  # (B, 21, 3)
+                jaw_pose.unsqueeze(1),  # (B, 1, 3)
+                eye_pose,  # (B, 2, 3)
+                left_hand_pose,  # (B, 15, 3)
+                right_hand_pose,  # (B, 15, 3)
+            ],
+            dim=1,
+        ).reshape(B, -1)
+
+        smplx_params = {
+            "full_pose": full_pose,  # (B, 55 * 3)
+            "transl": trans,  # (B, 3)
+        }
+
+        return smplx_params
+
     def read_images(self, img_dir):
         logging.info(f"loading image ...")
         img_name_lists = sorted(glob.glob(f"{img_dir}/*.png"))
@@ -272,6 +396,12 @@ class HumanDataset(Dataset):
                 smpl_params[k] = v[0]
             else:
                 smpl_params[k] = v[idx]
+
+        # angle = torch.pi / 4  # 约 equal to 0.785
+        # smpl_params['full_pose'][16 * 3 + 2] -= angle
+        # smpl_params['full_pose'][5] = torch.pi / 6
+        # smpl_params['full_pose'][8] = -torch.pi / 6
+
 
         ret = {
             "idx": idx,
